@@ -30,8 +30,8 @@ func (s *store) put(w http.ResponseWriter, r *http.Request) {
 		//   ① w                     → 往哪写：响应
 		//   ② err.Error()           → 写什么：错因那句话（error 要 .Error() 转成 string）
 		//   ③ http.StatusBadRequest → 状态码：常量，值就是 400（"客户端请求有问题"）
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return // 提前返回：正文没读到，别再往下走
+		http.Error(w, err.Error(), http.StatusBadRequest) // 依次：w 往哪写 → err.Error()（错因）→ 400 状态码
+		return                                            // 提前返回：正文没读到，别再往下走
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -40,7 +40,15 @@ func (s *store) put(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *store) get(w http.ResponseWriter, r *http.Request) {
-
+	key := r.PathValue("key")
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	value, ok := s.data[key]
+	if !ok {
+		http.Error(w, "not found", http.StatusNotFound) // 依次：w → "not found" → 404 状态码
+		return
+	}
+	w.Write([]byte(value))
 }
 
 func (s *store) delete(w http.ResponseWriter, r *http.Request) {
