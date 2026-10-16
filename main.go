@@ -52,7 +52,16 @@ func (s *store) get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *store) delete(w http.ResponseWriter, r *http.Request) {
-
+	key := r.PathValue("key")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.data[key]
+	if !ok {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	delete(s.data, key)
+	w.Write([]byte("ok"))
 }
 
 func (s *store) list(w http.ResponseWriter, r *http.Request) {
