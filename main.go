@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"sync"
@@ -65,5 +66,16 @@ func (s *store) delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *store) list(w http.ResponseWriter, r *http.Request) {
-
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	keys := make([]string, 0, len(s.data)) // ② 空切片（不是 nil）+ 预分配
+	for k := range s.data {                //    只取 key，不要 value
+		keys = append(keys, k)
+	}
+	data, err := json.Marshal(keys) // ③ 编码成 JSON 文本：[]string → []byte（结果如 ["name","age"]）
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError) // 依次：w 往哪写 → err.Error()（错因）→ 500 状态码
+		return
+	}
+	w.Write(data)
 }
