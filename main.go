@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+	db := &store{data: map[string]string{}} // 存储实例：在 main 里建（局部变量）；data 必须初始化（nil map 写入会 panic）
 	mux := http.NewServeMux()
 	mux.HandleFunc("PUT /kv/{key}", db.put)       // 存入
 	mux.HandleFunc("GET /kv/{key}", db.get)       // 读取
@@ -20,8 +21,6 @@ type store struct { // 存储：数据 data + 保护它的锁 mu，绑成一套
 	mu   sync.RWMutex      // 读写锁：保护下面的 data（读用 RLock、写用 Lock）
 	data map[string]string // 数据本体：key → value，都存纯文本
 }
-
-var db = store{data: map[string]string{}} // 全局唯一的存储实例；data 必须初始化（nil map 写入会 panic）
 
 func (s *store) put(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
