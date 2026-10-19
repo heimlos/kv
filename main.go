@@ -4,11 +4,16 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"sync"
 )
 
 func main() {
-	db := &store{data: map[string]string{}} // 存储实例：在 main 里建（局部变量）；data 必须初始化（nil map 写入会 panic）
+	f, err := os.OpenFile("data.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644) // 打开日志文件：不存在就创建，写入模式，追加写入，权限 0644
+	if err != nil {
+		panic(err) // 打开失败就 panic（直接崩溃，打印错因）
+	}
+	db := &store{data: map[string]string{}, log: f} // 存储实例：在 main 里建（局部变量）；data 必须初始化（nil map 写入会 panic）
 	mux := http.NewServeMux()
 	mux.HandleFunc("PUT /kv/{key}", db.put)       // 存入
 	mux.HandleFunc("GET /kv/{key}", db.get)       // 读取
@@ -20,6 +25,7 @@ func main() {
 type store struct { // 存储：数据 data + 保护它的锁 mu，绑成一套
 	mu   sync.RWMutex      // 读写锁：保护下面的 data（读用 RLock、写用 Lock）
 	data map[string]string // 数据本体：key → value，都存纯文本
+	log  *os.File          // 日志文件句柄（一个打开着的文件，这里放 data.log）
 }
 
 func (s *store) put(w http.ResponseWriter, r *http.Request) {
