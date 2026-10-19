@@ -28,6 +28,17 @@ type store struct { // 存储：数据 data + 保护它的锁 mu，绑成一套
 	log  *os.File          // 日志文件句柄（一个打开着的文件，这里放 data.log）
 }
 
+type putEntry struct { // 日志条目：存入操作的记录
+	Op    string `json:"op"`    // 操作：put
+	Key   string `json:"key"`   // key
+	Value string `json:"value"` // value
+}
+
+type delEntry struct { // 日志条目：删除操作的记录
+	Op  string `json:"op"`  // 操作：delete
+	Key string `json:"key"` // key
+}
+
 func (s *store) put(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	body, err := io.ReadAll(r.Body)
@@ -42,6 +53,16 @@ func (s *store) put(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.data[key] = string(body)
+	line, err := json.Marshal(putEntry{Op: "put", Key: key, Value: s.data[key]})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError) // 依次：w 往哪写 → err.Error()（错因）→ 500 状态码
+		return
+	}
+	_, err = s.log.Write(append(line, '\n')) // 写入日志：末尾加换行符
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError) // 依次：w 往哪写 → err.Error()（错因）→ 500 状态码
+		return
+	}
 	w.Write([]byte("ok"))
 }
 
@@ -67,6 +88,16 @@ func (s *store) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	delete(s.data, key)
+	line, err := json.Marshal(delEntry{Op: "del", Key: key})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError) // 依次：w 往哪写 → err.Error()（错因）→ 500 状态码
+		return
+	}
+	_, err = s.log.Write(append(line, '\n')) // 写入日志：末尾加换行符
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError) // 依次：w 往哪写 → err.Error()（错因）→ 500 状态码
+		return
+	}
 	w.Write([]byte("ok"))
 }
 
