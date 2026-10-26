@@ -156,16 +156,25 @@ func (s *store) replay(path string) error {
 			lastIdx = i
 		}
 	}
-
+	pos := 0 // 当前行在文件里的起始字节
 	for i, ln := range lines {
+
+		lineStart := pos   // 本行的第一个字节：pos 里已经加过上一行的换行符，所以不会指到 \n 上
+		pos += len(ln) + 1 // 先记本行再往后推：len(ln) 不含换行符（Split 把 \n 吃掉了），所以 +1 补回来
+
 		if strings.TrimSpace(ln) == "" {
 			continue
 		}
 		var e logEntry
 		err := json.Unmarshal([]byte(ln), &e) // 把一行 JSON 解进 e：① string 先转 []byte ② 传 &e（地址）才能写进去
 		if err != nil {
+			// 坏行①：JSON 解析失败 —— 只有"最后一行"才算崩溃尾巴（忽略），否则是真损坏（报错）
 			if i == lastIdx {
 				fmt.Println("忽略尾部坏行:", ln)
+				err := os.Truncate(path, int64(lineStart)) // 把半行切掉，否则下次写入会粘成中间坏行
+				if err != nil {
+					return err
+				}
 				continue
 			}
 			return fmt.Errorf("第 %d 行解析失败: %v", i+1, err)
@@ -177,8 +186,13 @@ func (s *store) replay(path string) error {
 		case "del":
 			delete(s.data, e.Key)
 		default:
+			// 坏行②：op 不认识 —— 判断和上面一样，只看它是不是最后一行
 			if i == lastIdx {
 				fmt.Println("忽略尾部坏行:", ln)
+				err := os.Truncate(path, int64(lineStart))
+				if err != nil {
+					return err
+				}
 				continue
 			}
 			return fmt.Errorf("第 %d 行 op 不认识: %q", i+1, e.Op)
