@@ -38,7 +38,7 @@ func TestReplayBrokenTail(t *testing.T) {
 	// 把 testdata 里的文件复制到临时目录，免得真把测试数据截短
 	src, _ := os.ReadFile("testdata/broken_tail.log")
 	path := filepath.Join(t.TempDir(), "broken_tail.log")
-	os.WriteFile(path, src, 0644)
+	os.WriteFile(path, src, 0644) //把内容写进副本
 
 	s := &store{data: map[string]string{}}
 	err := s.replay(path)
