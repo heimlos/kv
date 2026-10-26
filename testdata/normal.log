@@ -1,0 +1,4 @@
+{"op":"put","key":"a","value":"1"}
+{"op":"put","key":"b","value":"2"}
+{"op":"put","key":"a","value":"3"}
+{"op":"del","key":"b"}
