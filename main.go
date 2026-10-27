@@ -17,8 +17,11 @@ func main() {
 	}
 
 	db := &store{data: map[string]string{}, log: f} // 存储实例：在 main 里建（局部变量）；data 必须初始化（nil map 写入会 panic）
-	if err := db.replay("data.log"); err != nil {   // ← 加这两行
-		panic(err) //   启动时把日志重放回内存
+
+	err = db.replay("data.log") // 启动时把日志重放回内存
+
+	if err != nil {
+		panic(err)
 	}
 
 	mux := http.NewServeMux()
